@@ -1,9 +1,11 @@
 from pyrogram import filters
 from pyrogram.types import Message
+from pyrogram.errors import FloodWait
 from src import ADMINS, SERVER_URL
 from src.__main__ import app
 from src.functions.autopostch import autopostch
 from src.functions.upload_vid import upload_vid
+from asyncio import sleep
 import requests
 
 
@@ -33,8 +35,17 @@ async def createvid(client, message: Message):
         # that's why we don't access it with list
         vid_image = answer.photo.file_id
 
+        async def progress(current, total):
+            current_status = round(current / 1000000, 2)
+
+            try:
+                await wait_message.edit(
+                    f"<strong>Downloading...</strong>\n\nCurrent Status: {current_status}mb")
+            except FloodWait as err:
+                sleep(err.value)
+
         wait_message = await message.reply("<code>Trying to download</code>")
-        await app.download_media(vid_hash, f"{vid_name}.mp4")
+        await app.download_media(vid_hash, f"{vid_name}.mp4", progress=progress)
         await wait_message.edit("<code>Generate vid link..</code>")
         dstream_response = upload_vid(f"./downloads/{vid_name}.mp4")
         vid_link = dstream_response["result"][0]["download_url"]
